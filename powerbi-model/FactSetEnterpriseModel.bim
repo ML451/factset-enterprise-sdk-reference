@@ -1,0 +1,2460 @@
+{
+  "name": "FactSet Enterprise Analytics",
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "en-US",
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "discourageImplicitMeasures": true,
+    "annotations": [
+      {
+        "name": "PBI_QueryOrder",
+        "value": "[\"DimDate\",\"DimEntity\",\"DimSecurity\",\"DimCurrency\",\"DimBenchmark\",\"FactPrices\",\"FactReturns\",\"FactDividends\",\"FactFundamentals\",\"FactEstimatesConsensus\",\"FactEstimatesSurprise\",\"FactESGScores\",\"FactOwnership\",\"FactBenchmarkConstituents\"]"
+      },
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "1"
+      },
+      {
+        "name": "PBIDesktopVersion",
+        "value": "2.130.930.0 (24.07)"
+      }
+    ],
+    "dataSources": [
+      {
+        "type": "structured",
+        "name": "FactSet API",
+        "connectionDetails": {
+          "protocol": "web",
+          "address": {
+            "url": "https://api.factset.com/content"
+          }
+        },
+        "credential": {
+          "AuthenticationKind": "OAuth2",
+          "kind": "OAuth2",
+          "path": "https://api.factset.com"
+        },
+        "annotations": [
+          {
+            "name": "Description",
+            "value": "FactSet Content API - OAuth 2.0 client credentials flow. Configure credentials via FactSet Developer Portal: https://developer.factset.com"
+          }
+        ]
+      }
+    ],
+    "tables": [
+      {
+        "name": "DimDate",
+        "description": "Date dimension table for time-based analysis. Supports daily, weekly, monthly, quarterly, and annual aggregations.",
+        "lineageTag": "dim-date-001",
+        "dataCategory": "Time",
+        "columns": [
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "dim-date-date",
+            "summarizeBy": "none",
+            "isKey": true,
+            "annotations": [
+              { "name": "SummarizationSetBy", "value": "Automatic" }
+            ]
+          },
+          {
+            "name": "Year",
+            "dataType": "int64",
+            "sourceColumn": "Year",
+            "lineageTag": "dim-date-year",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Quarter",
+            "dataType": "int64",
+            "sourceColumn": "Quarter",
+            "lineageTag": "dim-date-quarter",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "QuarterLabel",
+            "dataType": "string",
+            "sourceColumn": "QuarterLabel",
+            "lineageTag": "dim-date-quarter-label",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Month",
+            "dataType": "int64",
+            "sourceColumn": "Month",
+            "lineageTag": "dim-date-month",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "MonthName",
+            "dataType": "string",
+            "sourceColumn": "MonthName",
+            "lineageTag": "dim-date-month-name",
+            "summarizeBy": "none",
+            "sortByColumn": "Month"
+          },
+          {
+            "name": "WeekOfYear",
+            "dataType": "int64",
+            "sourceColumn": "WeekOfYear",
+            "lineageTag": "dim-date-week",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "DayOfWeek",
+            "dataType": "int64",
+            "sourceColumn": "DayOfWeek",
+            "lineageTag": "dim-date-dow",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "DayName",
+            "dataType": "string",
+            "sourceColumn": "DayName",
+            "lineageTag": "dim-date-day-name",
+            "summarizeBy": "none",
+            "sortByColumn": "DayOfWeek"
+          },
+          {
+            "name": "IsBusinessDay",
+            "dataType": "boolean",
+            "sourceColumn": "IsBusinessDay",
+            "lineageTag": "dim-date-is-bday",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalYear",
+            "dataType": "int64",
+            "sourceColumn": "FiscalYear",
+            "lineageTag": "dim-date-fy",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalQuarter",
+            "dataType": "int64",
+            "sourceColumn": "FiscalQuarter",
+            "lineageTag": "dim-date-fq",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "YearMonth",
+            "dataType": "string",
+            "sourceColumn": "YearMonth",
+            "lineageTag": "dim-date-ym",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimDate-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    StartDate = #date(2010, 1, 1),",
+                "    EndDate = Date.From(DateTime.LocalNow()),",
+                "    DayCount = Duration.Days(EndDate - StartDate) + 1,",
+                "    DateList = List.Dates(StartDate, DayCount, #duration(1, 0, 0, 0)),",
+                "    ToTable = Table.FromList(DateList, Splitter.SplitByNothing(), {\"Date\"}, null, ExtraValues.Error),",
+                "    ChangedType = Table.TransformColumnTypes(ToTable, {{\"Date\", type date}}),",
+                "    AddYear = Table.AddColumn(ChangedType, \"Year\", each Date.Year([Date]), Int64.Type),",
+                "    AddQuarter = Table.AddColumn(AddYear, \"Quarter\", each Date.QuarterOfYear([Date]), Int64.Type),",
+                "    AddQuarterLabel = Table.AddColumn(AddQuarter, \"QuarterLabel\", each \"Q\" & Text.From(Date.QuarterOfYear([Date])) & \" \" & Text.From(Date.Year([Date])), type text),",
+                "    AddMonth = Table.AddColumn(AddQuarterLabel, \"Month\", each Date.Month([Date]), Int64.Type),",
+                "    AddMonthName = Table.AddColumn(AddMonth, \"MonthName\", each Date.MonthName([Date]), type text),",
+                "    AddWeekOfYear = Table.AddColumn(AddMonthName, \"WeekOfYear\", each Date.WeekOfYear([Date]), Int64.Type),",
+                "    AddDayOfWeek = Table.AddColumn(AddWeekOfYear, \"DayOfWeek\", each Date.DayOfWeek([Date], Day.Monday) + 1, Int64.Type),",
+                "    AddDayName = Table.AddColumn(AddDayOfWeek, \"DayName\", each Date.DayOfWeekName([Date]), type text),",
+                "    AddIsBusinessDay = Table.AddColumn(AddDayName, \"IsBusinessDay\", each Date.DayOfWeek([Date], Day.Monday) < 5, type logical),",
+                "    AddFiscalYear = Table.AddColumn(AddIsBusinessDay, \"FiscalYear\", each if Date.Month([Date]) >= 7 then Date.Year([Date]) + 1 else Date.Year([Date]), Int64.Type),",
+                "    AddFiscalQuarter = Table.AddColumn(AddFiscalYear, \"FiscalQuarter\", each if Date.Month([Date]) >= 7 then Date.QuarterOfYear([Date]) - 2 else Date.QuarterOfYear([Date]) + 2, Int64.Type),",
+                "    AddYearMonth = Table.AddColumn(AddFiscalQuarter, \"YearMonth\", each Text.From(Date.Year([Date])) & \"-\" & Text.PadStart(Text.From(Date.Month([Date])), 2, \"0\"), type text)",
+                "in",
+                "    AddYearMonth"
+              ]
+            }
+          }
+        ],
+        "hierarchies": [
+          {
+            "name": "Calendar Hierarchy",
+            "lineageTag": "hier-calendar",
+            "levels": [
+              { "name": "Year", "ordinal": 0, "column": "Year", "lineageTag": "hier-cal-year" },
+              { "name": "Quarter", "ordinal": 1, "column": "QuarterLabel", "lineageTag": "hier-cal-quarter" },
+              { "name": "Month", "ordinal": 2, "column": "MonthName", "lineageTag": "hier-cal-month" },
+              { "name": "Date", "ordinal": 3, "column": "Date", "lineageTag": "hier-cal-date" }
+            ]
+          },
+          {
+            "name": "Fiscal Hierarchy",
+            "lineageTag": "hier-fiscal",
+            "levels": [
+              { "name": "Fiscal Year", "ordinal": 0, "column": "FiscalYear", "lineageTag": "hier-fy" },
+              { "name": "Fiscal Quarter", "ordinal": 1, "column": "FiscalQuarter", "lineageTag": "hier-fq" },
+              { "name": "Date", "ordinal": 2, "column": "Date", "lineageTag": "hier-fiscal-date" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "DimEntity",
+        "description": "Entity reference data from FactSet Entity API. Contains company profiles, headquarters, and classification data.",
+        "lineageTag": "dim-entity-001",
+        "columns": [
+          {
+            "name": "EntityId",
+            "dataType": "string",
+            "sourceColumn": "EntityId",
+            "lineageTag": "dim-entity-id",
+            "summarizeBy": "none",
+            "isKey": true
+          },
+          {
+            "name": "EntityName",
+            "dataType": "string",
+            "sourceColumn": "EntityName",
+            "lineageTag": "dim-entity-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "UltimateParentId",
+            "dataType": "string",
+            "sourceColumn": "UltimateParentId",
+            "lineageTag": "dim-entity-parent-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "UltimateParentName",
+            "dataType": "string",
+            "sourceColumn": "UltimateParentName",
+            "lineageTag": "dim-entity-parent-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "CreditParentId",
+            "dataType": "string",
+            "sourceColumn": "CreditParentId",
+            "lineageTag": "dim-entity-credit-parent",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "IsPublic",
+            "dataType": "boolean",
+            "sourceColumn": "IsPublic",
+            "lineageTag": "dim-entity-is-public",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SecurityType",
+            "dataType": "string",
+            "sourceColumn": "SecurityType",
+            "lineageTag": "dim-entity-sec-type",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Website",
+            "dataType": "string",
+            "sourceColumn": "Website",
+            "lineageTag": "dim-entity-website",
+            "summarizeBy": "none",
+            "dataCategory": "WebUrl"
+          },
+          {
+            "name": "IncorporationDate",
+            "dataType": "dateTime",
+            "sourceColumn": "IncorporationDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "dim-entity-incorp-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "CountryOfRisk",
+            "dataType": "string",
+            "sourceColumn": "CountryOfRisk",
+            "lineageTag": "dim-entity-country-risk",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "IncorporationCountry",
+            "dataType": "string",
+            "sourceColumn": "IncorporationCountry",
+            "lineageTag": "dim-entity-incorp-country",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "BusinessDescription",
+            "dataType": "string",
+            "sourceColumn": "BusinessDescription",
+            "lineageTag": "dim-entity-biz-desc",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Phone",
+            "dataType": "string",
+            "sourceColumn": "Phone",
+            "lineageTag": "dim-entity-phone",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "HeadquartersCity",
+            "dataType": "string",
+            "sourceColumn": "HeadquartersCity",
+            "lineageTag": "dim-entity-hq-city",
+            "summarizeBy": "none",
+            "dataCategory": "City"
+          },
+          {
+            "name": "HeadquartersState",
+            "dataType": "string",
+            "sourceColumn": "HeadquartersState",
+            "lineageTag": "dim-entity-hq-state",
+            "summarizeBy": "none",
+            "dataCategory": "StateOrProvince"
+          },
+          {
+            "name": "HeadquartersCountry",
+            "dataType": "string",
+            "sourceColumn": "HeadquartersCountry",
+            "lineageTag": "dim-entity-hq-country",
+            "summarizeBy": "none",
+            "dataCategory": "Country"
+          },
+          {
+            "name": "HeadquartersZip",
+            "dataType": "string",
+            "sourceColumn": "HeadquartersZip",
+            "lineageTag": "dim-entity-hq-zip",
+            "summarizeBy": "none",
+            "dataCategory": "PostalCode"
+          },
+          {
+            "name": "EmailIR",
+            "dataType": "string",
+            "sourceColumn": "EmailIR",
+            "lineageTag": "dim-entity-email-ir",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimEntity-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-entity/v1/entity-references\",",
+                "    requestBody = Json.FromValue([ids = FactSet_WatchlistIds, #\"type\" = \"security\"]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"EntityId\"},",
+                "        {\"entityProperName\", \"EntityName\"},",
+                "        {\"ultimateParentId\", \"UltimateParentId\"},",
+                "        {\"ultimateParentName\", \"UltimateParentName\"},",
+                "        {\"creditParentId\", \"CreditParentId\"},",
+                "        {\"securityType\", \"SecurityType\"},",
+                "        {\"website\", \"Website\"},",
+                "        {\"incorporationDate\", \"IncorporationDate\"},",
+                "        {\"countryOfRisk\", \"CountryOfRisk\"},",
+                "        {\"incorporationCountry\", \"IncorporationCountry\"},",
+                "        {\"businessDescription\", \"BusinessDescription\"},",
+                "        {\"phone\", \"Phone\"},",
+                "        {\"headquartersCity\", \"HeadquartersCity\"},",
+                "        {\"headquartersState\", \"HeadquartersState\"},",
+                "        {\"headquartersCountry\", \"HeadquartersCountry\"},",
+                "        {\"headquartersZip\", \"HeadquartersZip\"},",
+                "        {\"emailIR\", \"EmailIR\"}",
+                "    }),",
+                "    addIsPublic = Table.AddColumn(renamed, \"IsPublic\", each try [publicEntityFlag] = 1 otherwise false, type logical),",
+                "    removeRaw = Table.RemoveColumns(addIsPublic, {\"publicEntityFlag\", \"privateEntityFlag\", \"requestId\", \"parentEquityId\", \"fsymEntityId\", \"countryOfRiskGeoRev\", \"websiteIR\", \"headquartersStreet\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeRaw, {",
+                "        {\"EntityId\", type text}, {\"EntityName\", type text}, {\"IncorporationDate\", type date},",
+                "        {\"CountryOfRisk\", type text}, {\"HeadquartersCountry\", type text}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimSecurity",
+        "description": "Security-level reference linking securities to entities. Maps FactSet regional IDs (-R) to entity IDs (-E).",
+        "lineageTag": "dim-security-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "dim-sec-fsym-id",
+            "summarizeBy": "none",
+            "isKey": true
+          },
+          {
+            "name": "EntityId",
+            "dataType": "string",
+            "sourceColumn": "EntityId",
+            "lineageTag": "dim-sec-entity-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SecurityName",
+            "dataType": "string",
+            "sourceColumn": "SecurityName",
+            "lineageTag": "dim-sec-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Ticker",
+            "dataType": "string",
+            "sourceColumn": "Ticker",
+            "lineageTag": "dim-sec-ticker",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Exchange",
+            "dataType": "string",
+            "sourceColumn": "Exchange",
+            "lineageTag": "dim-sec-exchange",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SecurityType",
+            "dataType": "string",
+            "sourceColumn": "SecurityType",
+            "lineageTag": "dim-sec-type",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "dim-sec-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Country",
+            "dataType": "string",
+            "sourceColumn": "Country",
+            "lineageTag": "dim-sec-country",
+            "summarizeBy": "none",
+            "dataCategory": "Country"
+          },
+          {
+            "name": "ActiveFlag",
+            "dataType": "boolean",
+            "sourceColumn": "ActiveFlag",
+            "lineageTag": "dim-sec-active",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ListingDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ListingDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "dim-sec-listing-date",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimSecurity-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-entity/v1/entity-securities\",",
+                "    requestBody = Json.FromValue([ids = FactSet_WatchlistIds]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"fsymEntityId\", \"EntityId\"},",
+                "        {\"securityName\", \"SecurityName\"},",
+                "        {\"localTicker\", \"Ticker\"},",
+                "        {\"exchange\", \"Exchange\"},",
+                "        {\"securityType\", \"SecurityType\"},",
+                "        {\"tradingCurrency\", \"Currency\"},",
+                "        {\"country\", \"Country\"},",
+                "        {\"activeFlag\", \"ActiveFlag\"},",
+                "        {\"listingDate\", \"ListingDate\"}",
+                "    }, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(renamed, {",
+                "        {\"FsymId\", type text}, {\"EntityId\", type text}, {\"Ticker\", type text},",
+                "        {\"ListingDate\", type date}, {\"ActiveFlag\", type logical}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimCurrency",
+        "description": "Currency reference table for multi-currency reporting.",
+        "lineageTag": "dim-currency-001",
+        "columns": [
+          {
+            "name": "CurrencyCode",
+            "dataType": "string",
+            "sourceColumn": "CurrencyCode",
+            "lineageTag": "dim-curr-code",
+            "summarizeBy": "none",
+            "isKey": true
+          },
+          {
+            "name": "CurrencyName",
+            "dataType": "string",
+            "sourceColumn": "CurrencyName",
+            "lineageTag": "dim-curr-name",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimCurrency-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    currencies = Table.FromRows({",
+                "        {\"USD\", \"US Dollar\"}, {\"EUR\", \"Euro\"}, {\"GBP\", \"British Pound\"},",
+                "        {\"JPY\", \"Japanese Yen\"}, {\"CHF\", \"Swiss Franc\"}, {\"CAD\", \"Canadian Dollar\"},",
+                "        {\"AUD\", \"Australian Dollar\"}, {\"CNY\", \"Chinese Yuan\"}, {\"HKD\", \"Hong Kong Dollar\"},",
+                "        {\"SGD\", \"Singapore Dollar\"}, {\"KRW\", \"South Korean Won\"}, {\"INR\", \"Indian Rupee\"},",
+                "        {\"BRL\", \"Brazilian Real\"}, {\"MXN\", \"Mexican Peso\"}, {\"SEK\", \"Swedish Krona\"},",
+                "        {\"NOK\", \"Norwegian Krone\"}, {\"DKK\", \"Danish Krone\"}, {\"NZD\", \"New Zealand Dollar\"},",
+                "        {\"ZAR\", \"South African Rand\"}, {\"TWD\", \"Taiwan Dollar\"}",
+                "    }, {\"CurrencyCode\", \"CurrencyName\"}),",
+                "    typedResult = Table.TransformColumnTypes(currencies, {{\"CurrencyCode\", type text}, {\"CurrencyName\", type text}})",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimBenchmark",
+        "description": "Benchmark/index reference data for relative performance analysis.",
+        "lineageTag": "dim-benchmark-001",
+        "columns": [
+          {
+            "name": "BenchmarkId",
+            "dataType": "string",
+            "sourceColumn": "BenchmarkId",
+            "lineageTag": "dim-bench-id",
+            "summarizeBy": "none",
+            "isKey": true
+          },
+          {
+            "name": "BenchmarkName",
+            "dataType": "string",
+            "sourceColumn": "BenchmarkName",
+            "lineageTag": "dim-bench-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Category",
+            "dataType": "string",
+            "sourceColumn": "Category",
+            "lineageTag": "dim-bench-category",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "dim-bench-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FamilyId",
+            "dataType": "string",
+            "sourceColumn": "FamilyId",
+            "lineageTag": "dim-bench-family",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimBenchmark-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-benchmarks/v1/id-list\",",
+                "    requestBody = Json.FromValue([ids = FactSet_BenchmarkIds]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"BenchmarkId\"},",
+                "        {\"name\", \"BenchmarkName\"},",
+                "        {\"category\", \"Category\"},",
+                "        {\"currency\", \"Currency\"},",
+                "        {\"familyId\", \"FamilyId\"}",
+                "    }, MissingField.Ignore)",
+                "in",
+                "    renamed"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactPrices",
+        "description": "Daily OHLCV price data from FactSet Prices API. Split-adjusted by default.",
+        "lineageTag": "fact-prices-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-prices-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-prices-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-prices-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ClosePrice",
+            "dataType": "double",
+            "sourceColumn": "ClosePrice",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-prices-close",
+            "summarizeBy": "none",
+            "annotations": [
+              { "name": "Format", "value": "<Format Format=\"NumberDecimal\" Accuracy=\"2\" />" }
+            ]
+          },
+          {
+            "name": "OpenPrice",
+            "dataType": "double",
+            "sourceColumn": "OpenPrice",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-prices-open",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "HighPrice",
+            "dataType": "double",
+            "sourceColumn": "HighPrice",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-prices-high",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "LowPrice",
+            "dataType": "double",
+            "sourceColumn": "LowPrice",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-prices-low",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Volume",
+            "dataType": "double",
+            "sourceColumn": "Volume",
+            "formatString": "#,##0",
+            "lineageTag": "fact-prices-volume",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "AdjDate",
+            "dataType": "dateTime",
+            "sourceColumn": "AdjDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-prices-adj-date",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactPrices-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-prices/v1/prices\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate,",
+                "        frequency = \"D\",",
+                "        adjust = \"SPLIT\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"currency\", \"Currency\"},",
+                "        {\"price\", \"ClosePrice\"},",
+                "        {\"priceOpen\", \"OpenPrice\"},",
+                "        {\"priceHigh\", \"HighPrice\"},",
+                "        {\"priceLow\", \"LowPrice\"},",
+                "        {\"volume\", \"Volume\"},",
+                "        {\"adjDate\", \"AdjDate\"}",
+                "    }),",
+                "    removeRequestId = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeRequestId, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date}, {\"ClosePrice\", type number},",
+                "        {\"OpenPrice\", type number}, {\"HighPrice\", type number},",
+                "        {\"LowPrice\", type number}, {\"Volume\", type number}, {\"AdjDate\", type date}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactReturns",
+        "description": "Total return data from FactSet Prices API. Includes price return adjusted for dividends and splits.",
+        "lineageTag": "fact-returns-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-returns-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-returns-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-returns-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "TotalReturn",
+            "dataType": "double",
+            "sourceColumn": "TotalReturn",
+            "formatString": "0.00%",
+            "lineageTag": "fact-returns-total",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactReturns-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-prices/v1/returns\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate,",
+                "        frequency = \"M\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"currency\", \"Currency\"},",
+                "        {\"totalReturn\", \"TotalReturn\"}",
+                "    }),",
+                "    removeRequestId = Table.RemoveColumns(renamed, {\"requestId\", \"adjDate\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeRequestId, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date}, {\"TotalReturn\", type number}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactDividends",
+        "description": "Dividend payment data from FactSet Prices API. Includes ex-dates, record dates, payment dates, and amounts.",
+        "lineageTag": "fact-dividends-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-div-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ExDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ExDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-div-ex-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-div-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "DividendAmount",
+            "dataType": "double",
+            "sourceColumn": "DividendAmount",
+            "formatString": "#,##0.0000",
+            "lineageTag": "fact-div-amount",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "RecordDate",
+            "dataType": "dateTime",
+            "sourceColumn": "RecordDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-div-record-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "PayDate",
+            "dataType": "dateTime",
+            "sourceColumn": "PayDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-div-pay-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "DividendType",
+            "dataType": "string",
+            "sourceColumn": "DividendType",
+            "lineageTag": "fact-div-type",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "TaxMarker",
+            "dataType": "string",
+            "sourceColumn": "TaxMarker",
+            "lineageTag": "fact-div-tax",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "NetGrossFlag",
+            "dataType": "string",
+            "sourceColumn": "NetGrossFlag",
+            "lineageTag": "fact-div-ng",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactDividends-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-prices/v1/dividends\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"divsExDate\", \"ExDate\"},",
+                "        {\"currency\", \"Currency\"},",
+                "        {\"divsPaid\", \"DividendAmount\"},",
+                "        {\"divsRecDate\", \"RecordDate\"},",
+                "        {\"divsPayDate\", \"PayDate\"},",
+                "        {\"divsTypeD\", \"DividendType\"},",
+                "        {\"divsTaxD\", \"TaxMarker\"},",
+                "        {\"divsNGFlag\", \"NetGrossFlag\"}",
+                "    }),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\", \"adjDate\", \"divsTypeC\", \"divsTaxC\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"FsymId\", type text}, {\"ExDate\", type date}, {\"DividendAmount\", type number},",
+                "        {\"RecordDate\", type date}, {\"PayDate\", type date}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactFundamentals",
+        "description": "Financial statement data from FactSet Fundamentals v2 API. Includes income statement, balance sheet, and cash flow metrics.",
+        "lineageTag": "fact-fundamentals-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-fund-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalPeriod",
+            "dataType": "string",
+            "sourceColumn": "FiscalPeriod",
+            "lineageTag": "fact-fund-fiscal-period",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalYear",
+            "dataType": "int64",
+            "sourceColumn": "FiscalYear",
+            "lineageTag": "fact-fund-fiscal-year",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalEndDate",
+            "dataType": "dateTime",
+            "sourceColumn": "FiscalEndDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-fund-fiscal-end",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ReportDate",
+            "dataType": "dateTime",
+            "sourceColumn": "ReportDate",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-fund-report-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-fund-currency",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Metric",
+            "dataType": "string",
+            "sourceColumn": "Metric",
+            "lineageTag": "fact-fund-metric",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Value",
+            "dataType": "double",
+            "sourceColumn": "Value",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-fund-value",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "Periodicity",
+            "dataType": "string",
+            "sourceColumn": "Periodicity",
+            "lineageTag": "fact-fund-periodicity",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactFundamentals-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-fundamentals/v2/fundamentals\",",
+                "    metricsToFetch = {\"FF_SALES\", \"FF_GROSS_INC\", \"FF_OPER_INC\", \"FF_NET_INC\", \"FF_EPS\", \"FF_BPS\",",
+                "        \"FF_ASSETS\", \"FF_DEBT_LT\", \"FF_DEBT_ST\", \"FF_EQY_TOT\", \"FF_CASH_ST\",",
+                "        \"FF_OPER_CF\", \"FF_CAP_EX\", \"FF_FREE_CF\", \"FF_DIV_PS\",",
+                "        \"FF_PE\", \"FF_PBK\", \"FF_ROE\", \"FF_ROA\", \"FF_GROSS_MGN\", \"FF_OPER_MGN\", \"FF_NET_MGN\",",
+                "        \"FF_MKT_VAL\", \"FF_ENTRPR_VAL\", \"FF_EBITDA\"},",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        metrics = metricsToFetch,",
+                "        periodicity = \"ANN\",",
+                "        fiscalPeriodStart = FactSet_FiscalStart,",
+                "        fiscalPeriodEnd = FactSet_FiscalEnd",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"fiscalPeriod\", \"FiscalPeriod\"},",
+                "        {\"fiscalYear\", \"FiscalYear\"},",
+                "        {\"fiscalEndDate\", \"FiscalEndDate\"},",
+                "        {\"reportDate\", \"ReportDate\"},",
+                "        {\"currency\", \"Currency\"},",
+                "        {\"metric\", \"Metric\"},",
+                "        {\"value\", \"Value\"},",
+                "        {\"periodicity\", \"Periodicity\"}",
+                "    }, MissingField.Ignore),",
+                "    removeRequestId = Table.RemoveColumns(renamed, {\"requestId\", \"updateType\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeRequestId, {",
+                "        {\"FsymId\", type text}, {\"FiscalEndDate\", type date},",
+                "        {\"ReportDate\", type date}, {\"Value\", type number}, {\"FiscalYear\", Int64.Type}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactEstimatesConsensus",
+        "description": "Analyst consensus estimates from FactSet Estimates v2 API. Rolling consensus data for forward-looking analysis.",
+        "lineageTag": "fact-est-consensus-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-est-con-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-est-con-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Metric",
+            "dataType": "string",
+            "sourceColumn": "Metric",
+            "lineageTag": "fact-est-con-metric",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalPeriod",
+            "dataType": "string",
+            "sourceColumn": "FiscalPeriod",
+            "lineageTag": "fact-est-con-period",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalYear",
+            "dataType": "int64",
+            "sourceColumn": "FiscalYear",
+            "lineageTag": "fact-est-con-fy",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ConsensusMean",
+            "dataType": "double",
+            "sourceColumn": "ConsensusMean",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-con-mean",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ConsensusMedian",
+            "dataType": "double",
+            "sourceColumn": "ConsensusMedian",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-con-median",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ConsensusHigh",
+            "dataType": "double",
+            "sourceColumn": "ConsensusHigh",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-con-high",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ConsensusLow",
+            "dataType": "double",
+            "sourceColumn": "ConsensusLow",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-con-low",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "EstimateCount",
+            "dataType": "int64",
+            "sourceColumn": "EstimateCount",
+            "lineageTag": "fact-est-con-count",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-est-con-currency",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactEstimatesConsensus-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-estimates/v2/rolling-consensus\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        metrics = {\"SALES\", \"EPS\", \"EBITDA\", \"NET_INC\", \"BPS\", \"DPS\", \"CF_PS\", \"ROE\"},",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate,",
+                "        frequency = \"M\",",
+                "        relativeFiscalStart = 1,",
+                "        relativeFiscalEnd = 2,",
+                "        periodicity = \"ANN\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"estimateDate\", \"Date\"},",
+                "        {\"metric\", \"Metric\"},",
+                "        {\"fiscalPeriod\", \"FiscalPeriod\"},",
+                "        {\"fiscalYear\", \"FiscalYear\"},",
+                "        {\"mean\", \"ConsensusMean\"},",
+                "        {\"median\", \"ConsensusMedian\"},",
+                "        {\"high\", \"ConsensusHigh\"},",
+                "        {\"low\", \"ConsensusLow\"},",
+                "        {\"estimateCount\", \"EstimateCount\"},",
+                "        {\"currency\", \"Currency\"}",
+                "    }, MissingField.Ignore),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date},",
+                "        {\"ConsensusMean\", type number}, {\"ConsensusMedian\", type number},",
+                "        {\"FiscalYear\", Int64.Type}, {\"EstimateCount\", Int64.Type}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactEstimatesSurprise",
+        "description": "Earnings surprise data from FactSet Estimates v2 API. Compares actual results against analyst expectations.",
+        "lineageTag": "fact-est-surprise-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-est-surp-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-est-surp-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalPeriod",
+            "dataType": "string",
+            "sourceColumn": "FiscalPeriod",
+            "lineageTag": "fact-est-surp-period",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FiscalYear",
+            "dataType": "int64",
+            "sourceColumn": "FiscalYear",
+            "lineageTag": "fact-est-surp-fy",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Metric",
+            "dataType": "string",
+            "sourceColumn": "Metric",
+            "lineageTag": "fact-est-surp-metric",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ActualValue",
+            "dataType": "double",
+            "sourceColumn": "ActualValue",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-surp-actual",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "EstimateValue",
+            "dataType": "double",
+            "sourceColumn": "EstimateValue",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-surp-estimate",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SurpriseAmount",
+            "dataType": "double",
+            "sourceColumn": "SurpriseAmount",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-est-surp-amount",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SurprisePercent",
+            "dataType": "double",
+            "sourceColumn": "SurprisePercent",
+            "formatString": "0.00%",
+            "lineageTag": "fact-est-surp-pct",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-est-surp-currency",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactEstimatesSurprise-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-estimates/v2/surprise\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        metrics = {\"SALES\", \"EPS\"},",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate,",
+                "        periodicity = \"QTR\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"fiscalPeriod\", \"FiscalPeriod\"},",
+                "        {\"fiscalYear\", \"FiscalYear\"},",
+                "        {\"metric\", \"Metric\"},",
+                "        {\"actual\", \"ActualValue\"},",
+                "        {\"estimate\", \"EstimateValue\"},",
+                "        {\"surpriseAmount\", \"SurpriseAmount\"},",
+                "        {\"surprisePercent\", \"SurprisePercent\"},",
+                "        {\"currency\", \"Currency\"}",
+                "    }, MissingField.Ignore),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date},",
+                "        {\"ActualValue\", type number}, {\"EstimateValue\", type number},",
+                "        {\"SurpriseAmount\", type number}, {\"SurprisePercent\", type number},",
+                "        {\"FiscalYear\", Int64.Type}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactESGScores",
+        "description": "ESG (Environmental, Social, Governance) scores from FactSet ESG v3 API.",
+        "lineageTag": "fact-esg-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-esg-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-esg-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ESGScore",
+            "dataType": "double",
+            "sourceColumn": "ESGScore",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-esg-score",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "EnvironmentalScore",
+            "dataType": "double",
+            "sourceColumn": "EnvironmentalScore",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-esg-env",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SocialScore",
+            "dataType": "double",
+            "sourceColumn": "SocialScore",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-esg-social",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "GovernanceScore",
+            "dataType": "double",
+            "sourceColumn": "GovernanceScore",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-esg-gov",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ESGRank",
+            "dataType": "int64",
+            "sourceColumn": "ESGRank",
+            "lineageTag": "fact-esg-rank",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "ESGRankPercent",
+            "dataType": "double",
+            "sourceColumn": "ESGRankPercent",
+            "formatString": "0.0%",
+            "lineageTag": "fact-esg-rank-pct",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactESGScores-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-esg/v3/esg-scores\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        startDate = FactSet_StartDate,",
+                "        endDate = FactSet_EndDate,",
+                "        frequency = \"M\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"esgScore\", \"ESGScore\"},",
+                "        {\"environmentalScore\", \"EnvironmentalScore\"},",
+                "        {\"socialScore\", \"SocialScore\"},",
+                "        {\"governanceScore\", \"GovernanceScore\"},",
+                "        {\"esgRank\", \"ESGRank\"},",
+                "        {\"esgRankPercent\", \"ESGRankPercent\"}",
+                "    }, MissingField.Ignore),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date},",
+                "        {\"ESGScore\", type number}, {\"EnvironmentalScore\", type number},",
+                "        {\"SocialScore\", type number}, {\"GovernanceScore\", type number},",
+                "        {\"ESGRank\", Int64.Type}, {\"ESGRankPercent\", type number}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactOwnership",
+        "description": "Institutional ownership data from FactSet Ownership v1 API. Shows holder positions and concentration.",
+        "lineageTag": "fact-ownership-001",
+        "columns": [
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-own-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-own-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "HolderEntityId",
+            "dataType": "string",
+            "sourceColumn": "HolderEntityId",
+            "lineageTag": "fact-own-holder-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "HolderName",
+            "dataType": "string",
+            "sourceColumn": "HolderName",
+            "lineageTag": "fact-own-holder-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "HolderType",
+            "dataType": "string",
+            "sourceColumn": "HolderType",
+            "lineageTag": "fact-own-holder-type",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SharesHeld",
+            "dataType": "double",
+            "sourceColumn": "SharesHeld",
+            "formatString": "#,##0",
+            "lineageTag": "fact-own-shares",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "MarketValue",
+            "dataType": "double",
+            "sourceColumn": "MarketValue",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-own-mktval",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "PercentOutstanding",
+            "dataType": "double",
+            "sourceColumn": "PercentOutstanding",
+            "formatString": "0.00%",
+            "lineageTag": "fact-own-pct-out",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "PositionChange",
+            "dataType": "double",
+            "sourceColumn": "PositionChange",
+            "formatString": "#,##0",
+            "lineageTag": "fact-own-pos-change",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-own-currency",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactOwnership-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-ownership/v1/security-holders\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_WatchlistIds,",
+                "        date = FactSet_EndDate,",
+                "        topn = \"50\",",
+                "        holderType = \"I\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"holderEntityId\", \"HolderEntityId\"},",
+                "        {\"holderName\", \"HolderName\"},",
+                "        {\"holderType\", \"HolderType\"},",
+                "        {\"adjHolding\", \"SharesHeld\"},",
+                "        {\"adjMarketValue\", \"MarketValue\"},",
+                "        {\"percentOutstanding\", \"PercentOutstanding\"},",
+                "        {\"positionChange\", \"PositionChange\"},",
+                "        {\"currency\", \"Currency\"}",
+                "    }, MissingField.Ignore),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"FsymId\", type text}, {\"Date\", type date},",
+                "        {\"SharesHeld\", type number}, {\"MarketValue\", type number},",
+                "        {\"PercentOutstanding\", type number}, {\"PositionChange\", type number}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "FactBenchmarkConstituents",
+        "description": "Benchmark index constituent data from FactSet Benchmarks v1 API. Maps securities to their benchmark memberships and weights.",
+        "lineageTag": "fact-bench-const-001",
+        "columns": [
+          {
+            "name": "BenchmarkId",
+            "dataType": "string",
+            "sourceColumn": "BenchmarkId",
+            "lineageTag": "fact-bench-const-bench-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "FsymId",
+            "dataType": "string",
+            "sourceColumn": "FsymId",
+            "lineageTag": "fact-bench-const-fsym-id",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Date",
+            "dataType": "dateTime",
+            "sourceColumn": "Date",
+            "formatString": "yyyy-MM-dd",
+            "lineageTag": "fact-bench-const-date",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "SecurityName",
+            "dataType": "string",
+            "sourceColumn": "SecurityName",
+            "lineageTag": "fact-bench-const-name",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Weight",
+            "dataType": "double",
+            "sourceColumn": "Weight",
+            "formatString": "0.00%",
+            "lineageTag": "fact-bench-const-weight",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "MarketValue",
+            "dataType": "double",
+            "sourceColumn": "MarketValue",
+            "formatString": "#,##0.00",
+            "lineageTag": "fact-bench-const-mktval",
+            "summarizeBy": "sum"
+          },
+          {
+            "name": "Sector",
+            "dataType": "string",
+            "sourceColumn": "Sector",
+            "lineageTag": "fact-bench-const-sector",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Industry",
+            "dataType": "string",
+            "sourceColumn": "Industry",
+            "lineageTag": "fact-bench-const-industry",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Country",
+            "dataType": "string",
+            "sourceColumn": "Country",
+            "lineageTag": "fact-bench-const-country",
+            "summarizeBy": "none",
+            "dataCategory": "Country"
+          },
+          {
+            "name": "Currency",
+            "dataType": "string",
+            "sourceColumn": "Currency",
+            "lineageTag": "fact-bench-const-currency",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "FactBenchmarkConstituents-Partition",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    apiBase = \"https://api.factset.com/content/factset-benchmarks/v1/constituents\",",
+                "    requestBody = Json.FromValue([",
+                "        ids = FactSet_BenchmarkIds,",
+                "        date = FactSet_EndDate,",
+                "        currency = \"USD\"",
+                "    ]),",
+                "    response = Web.Contents(apiBase, [",
+                "        Headers = [",
+                "            #\"Content-Type\" = \"application/json\",",
+                "            #\"Accept\" = \"application/json\",",
+                "            #\"Authorization\" = \"Bearer \" & FactSet_AccessToken",
+                "        ],",
+                "        Content = requestBody",
+                "    ]),",
+                "    parsed = Json.Document(response),",
+                "    data = parsed[data],",
+                "    toTable = Table.FromRecords(data),",
+                "    renamed = Table.RenameColumns(toTable, {",
+                "        {\"benchmarkId\", \"BenchmarkId\"},",
+                "        {\"fsymId\", \"FsymId\"},",
+                "        {\"date\", \"Date\"},",
+                "        {\"name\", \"SecurityName\"},",
+                "        {\"weight\", \"Weight\"},",
+                "        {\"marketValue\", \"MarketValue\"},",
+                "        {\"sector\", \"Sector\"},",
+                "        {\"industry\", \"Industry\"},",
+                "        {\"country\", \"Country\"},",
+                "        {\"currency\", \"Currency\"}",
+                "    }, MissingField.Ignore),",
+                "    removeExtra = Table.RemoveColumns(renamed, {\"requestId\"}, MissingField.Ignore),",
+                "    typedResult = Table.TransformColumnTypes(removeExtra, {",
+                "        {\"BenchmarkId\", type text}, {\"FsymId\", type text}, {\"Date\", type date},",
+                "        {\"Weight\", type number}, {\"MarketValue\", type number}",
+                "    })",
+                "in",
+                "    typedResult"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "_Measures",
+        "description": "Centralized measures table containing all DAX calculations for the model.",
+        "lineageTag": "measures-table-001",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "_Measures-Partition",
+            "mode": "import",
+            "source": {
+              "type": "calculated",
+              "expression": "ROW(\"MeasureSpace\", BLANK())"
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Latest Close Price",
+            "expression": "VAR _lastDate = MAX(FactPrices[Date]) RETURN CALCULATE(SELECTEDVALUE(FactPrices[ClosePrice]), FactPrices[Date] = _lastDate)",
+            "formatString": "#,##0.00",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-latest-close",
+            "annotations": [{ "name": "Description", "value": "Most recent closing price for the selected security." }]
+          },
+          {
+            "name": "Period High",
+            "expression": "MAX(FactPrices[HighPrice])",
+            "formatString": "#,##0.00",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-period-high"
+          },
+          {
+            "name": "Period Low",
+            "expression": "MIN(FactPrices[LowPrice])",
+            "formatString": "#,##0.00",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-period-low"
+          },
+          {
+            "name": "Avg Daily Volume",
+            "expression": "AVERAGE(FactPrices[Volume])",
+            "formatString": "#,##0",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-avg-volume"
+          },
+          {
+            "name": "Total Volume",
+            "expression": "SUM(FactPrices[Volume])",
+            "formatString": "#,##0",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-total-volume"
+          },
+          {
+            "name": "VWAP",
+            "expression": "DIVIDE(SUMX(FactPrices, FactPrices[ClosePrice] * FactPrices[Volume]), SUM(FactPrices[Volume]), BLANK())",
+            "formatString": "#,##0.00",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-vwap",
+            "annotations": [{ "name": "Description", "value": "Volume-Weighted Average Price over the selected period." }]
+          },
+          {
+            "name": "Price Range",
+            "expression": "[Period High] - [Period Low]",
+            "formatString": "#,##0.00",
+            "displayFolder": "Price Metrics",
+            "lineageTag": "m-price-range"
+          },
+          {
+            "name": "Daily Return %",
+            "expression": "VAR _lastDate = MAX(FactPrices[Date]) VAR _prevDate = CALCULATE(MAX(FactPrices[Date]), FactPrices[Date] < _lastDate) VAR _lastClose = CALCULATE(SELECTEDVALUE(FactPrices[ClosePrice]), FactPrices[Date] = _lastDate) VAR _prevClose = CALCULATE(SELECTEDVALUE(FactPrices[ClosePrice]), FactPrices[Date] = _prevDate) RETURN DIVIDE(_lastClose - _prevClose, _prevClose, BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Return Metrics",
+            "lineageTag": "m-daily-return"
+          },
+          {
+            "name": "Cumulative Total Return",
+            "expression": "PRODUCTX(FactReturns, 1 + FactReturns[TotalReturn]) - 1",
+            "formatString": "0.00%",
+            "displayFolder": "Return Metrics",
+            "lineageTag": "m-cum-total-return",
+            "annotations": [{ "name": "Description", "value": "Compound total return over the selected period, including dividends." }]
+          },
+          {
+            "name": "Annualized Return",
+            "expression": "VAR _cumReturn = [Cumulative Total Return] VAR _dayCount = COUNTROWS(FactReturns) VAR _years = DIVIDE(_dayCount, 12) RETURN IF(_years > 0, POWER(1 + _cumReturn, DIVIDE(1, _years)) - 1, BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Return Metrics",
+            "lineageTag": "m-ann-return"
+          },
+          {
+            "name": "Return Volatility",
+            "expression": "VAR _avgReturn = AVERAGEX(FactReturns, FactReturns[TotalReturn]) VAR _variance = AVERAGEX(FactReturns, POWER(FactReturns[TotalReturn] - _avgReturn, 2)) RETURN SQRT(_variance) * SQRT(12)",
+            "formatString": "0.00%",
+            "displayFolder": "Return Metrics",
+            "lineageTag": "m-volatility",
+            "annotations": [{ "name": "Description", "value": "Annualized volatility of monthly returns (standard deviation * sqrt(12))." }]
+          },
+          {
+            "name": "Sharpe Ratio",
+            "expression": "VAR _annReturn = [Annualized Return] VAR _vol = [Return Volatility] VAR _riskFreeRate = 0.05 RETURN DIVIDE(_annReturn - _riskFreeRate, _vol, BLANK())",
+            "formatString": "#,##0.00",
+            "displayFolder": "Return Metrics",
+            "lineageTag": "m-sharpe",
+            "annotations": [{ "name": "Description", "value": "Sharpe ratio using 5% risk-free rate assumption. Adjust FactSet_RiskFreeRate parameter as needed." }]
+          },
+          {
+            "name": "Revenue (Latest)",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_SALES\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Income Statement",
+            "lineageTag": "m-revenue"
+          },
+          {
+            "name": "Net Income (Latest)",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_NET_INC\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Income Statement",
+            "lineageTag": "m-net-income"
+          },
+          {
+            "name": "EBITDA (Latest)",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_EBITDA\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Income Statement",
+            "lineageTag": "m-ebitda"
+          },
+          {
+            "name": "EPS (Latest)",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_EPS\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0.00",
+            "displayFolder": "Fundamental Metrics\\Per Share",
+            "lineageTag": "m-eps"
+          },
+          {
+            "name": "Book Value Per Share",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_BPS\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0.00",
+            "displayFolder": "Fundamental Metrics\\Per Share",
+            "lineageTag": "m-bvps"
+          },
+          {
+            "name": "Dividends Per Share",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_DIV_PS\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0.00",
+            "displayFolder": "Fundamental Metrics\\Per Share",
+            "lineageTag": "m-dps"
+          },
+          {
+            "name": "Market Cap",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_MKT_VAL\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-market-cap"
+          },
+          {
+            "name": "Enterprise Value",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_ENTRPR_VAL\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-ev"
+          },
+          {
+            "name": "P/E Ratio",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_PE\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0.0x",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-pe-ratio"
+          },
+          {
+            "name": "P/B Ratio",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_PBK\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0.0x",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-pb-ratio"
+          },
+          {
+            "name": "EV/EBITDA",
+            "expression": "DIVIDE([Enterprise Value], [EBITDA (Latest)], BLANK())",
+            "formatString": "#,##0.0x",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-ev-ebitda"
+          },
+          {
+            "name": "Dividend Yield",
+            "expression": "DIVIDE([Dividends Per Share], [Latest Close Price], BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Valuation",
+            "lineageTag": "m-div-yield"
+          },
+          {
+            "name": "Gross Margin",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_GROSS_MGN\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Profitability",
+            "lineageTag": "m-gross-margin"
+          },
+          {
+            "name": "Operating Margin",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_OPER_MGN\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Profitability",
+            "lineageTag": "m-oper-margin"
+          },
+          {
+            "name": "Net Margin",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_NET_MGN\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Profitability",
+            "lineageTag": "m-net-margin"
+          },
+          {
+            "name": "ROE",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_ROE\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Profitability",
+            "lineageTag": "m-roe"
+          },
+          {
+            "name": "ROA",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_ROA\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Profitability",
+            "lineageTag": "m-roa"
+          },
+          {
+            "name": "Total Assets",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_ASSETS\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Balance Sheet",
+            "lineageTag": "m-total-assets"
+          },
+          {
+            "name": "Total Equity",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_EQY_TOT\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Balance Sheet",
+            "lineageTag": "m-total-equity"
+          },
+          {
+            "name": "Long-Term Debt",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_DEBT_LT\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Balance Sheet",
+            "lineageTag": "m-lt-debt"
+          },
+          {
+            "name": "Debt-to-Equity",
+            "expression": "VAR _totalDebt = CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_DEBT_LT\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1)) + CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_DEBT_ST\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1)) RETURN DIVIDE(_totalDebt, [Total Equity], BLANK())",
+            "formatString": "#,##0.00",
+            "displayFolder": "Fundamental Metrics\\Balance Sheet",
+            "lineageTag": "m-debt-equity"
+          },
+          {
+            "name": "Free Cash Flow",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_FREE_CF\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Cash Flow",
+            "lineageTag": "m-fcf"
+          },
+          {
+            "name": "Operating Cash Flow",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_OPER_CF\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Cash Flow",
+            "lineageTag": "m-oper-cf"
+          },
+          {
+            "name": "CapEx",
+            "expression": "CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_CAP_EX\", LASTNONBLANK(FactFundamentals[FiscalEndDate], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Fundamental Metrics\\Cash Flow",
+            "lineageTag": "m-capex"
+          },
+          {
+            "name": "FCF Yield",
+            "expression": "DIVIDE([Free Cash Flow], [Market Cap], BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Fundamental Metrics\\Cash Flow",
+            "lineageTag": "m-fcf-yield"
+          },
+          {
+            "name": "Revenue YoY Growth",
+            "expression": "VAR _currentYear = MAX(FactFundamentals[FiscalYear]) VAR _currentRev = CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_SALES\", FactFundamentals[FiscalYear] = _currentYear) VAR _priorRev = CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_SALES\", FactFundamentals[FiscalYear] = _currentYear - 1) RETURN DIVIDE(_currentRev - _priorRev, ABS(_priorRev), BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Growth Metrics",
+            "lineageTag": "m-rev-growth"
+          },
+          {
+            "name": "EPS YoY Growth",
+            "expression": "VAR _currentYear = MAX(FactFundamentals[FiscalYear]) VAR _currentEPS = CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_EPS\", FactFundamentals[FiscalYear] = _currentYear) VAR _priorEPS = CALCULATE(SUM(FactFundamentals[Value]), FactFundamentals[Metric] = \"FF_EPS\", FactFundamentals[FiscalYear] = _currentYear - 1) RETURN DIVIDE(_currentEPS - _priorEPS, ABS(_priorEPS), BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Growth Metrics",
+            "lineageTag": "m-eps-growth"
+          },
+          {
+            "name": "Consensus EPS (NTM)",
+            "expression": "CALCULATE(SELECTEDVALUE(FactEstimatesConsensus[ConsensusMean]), FactEstimatesConsensus[Metric] = \"EPS\", LASTNONBLANK(FactEstimatesConsensus[Date], 1))",
+            "formatString": "#,##0.00",
+            "displayFolder": "Estimates",
+            "lineageTag": "m-consensus-eps"
+          },
+          {
+            "name": "Consensus Revenue (NTM)",
+            "expression": "CALCULATE(SELECTEDVALUE(FactEstimatesConsensus[ConsensusMean]), FactEstimatesConsensus[Metric] = \"SALES\", LASTNONBLANK(FactEstimatesConsensus[Date], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Estimates",
+            "lineageTag": "m-consensus-rev"
+          },
+          {
+            "name": "Forward P/E",
+            "expression": "DIVIDE([Latest Close Price], [Consensus EPS (NTM)], BLANK())",
+            "formatString": "#,##0.0x",
+            "displayFolder": "Estimates",
+            "lineageTag": "m-fwd-pe",
+            "annotations": [{ "name": "Description", "value": "Forward P/E ratio using NTM consensus EPS estimate." }]
+          },
+          {
+            "name": "Estimate Spread (EPS)",
+            "expression": "VAR _latest = LASTNONBLANK(FactEstimatesConsensus[Date], 1) RETURN CALCULATE(SELECTEDVALUE(FactEstimatesConsensus[ConsensusHigh]) - SELECTEDVALUE(FactEstimatesConsensus[ConsensusLow]), FactEstimatesConsensus[Metric] = \"EPS\", FactEstimatesConsensus[Date] = _latest)",
+            "formatString": "#,##0.00",
+            "displayFolder": "Estimates",
+            "lineageTag": "m-est-spread"
+          },
+          {
+            "name": "Analyst Count",
+            "expression": "CALCULATE(SELECTEDVALUE(FactEstimatesConsensus[EstimateCount]), FactEstimatesConsensus[Metric] = \"EPS\", LASTNONBLANK(FactEstimatesConsensus[Date], 1))",
+            "formatString": "#,##0",
+            "displayFolder": "Estimates",
+            "lineageTag": "m-analyst-count"
+          },
+          {
+            "name": "EPS Beat Rate",
+            "expression": "DIVIDE(COUNTROWS(FILTER(FactEstimatesSurprise, FactEstimatesSurprise[Metric] = \"EPS\" && FactEstimatesSurprise[SurpriseAmount] > 0)), COUNTROWS(FILTER(FactEstimatesSurprise, FactEstimatesSurprise[Metric] = \"EPS\")), BLANK())",
+            "formatString": "0.0%",
+            "displayFolder": "Estimates\\Surprise",
+            "lineageTag": "m-eps-beat-rate",
+            "annotations": [{ "name": "Description", "value": "Percentage of quarters where actual EPS exceeded consensus estimate." }]
+          },
+          {
+            "name": "Avg EPS Surprise %",
+            "expression": "CALCULATE(AVERAGE(FactEstimatesSurprise[SurprisePercent]), FactEstimatesSurprise[Metric] = \"EPS\")",
+            "formatString": "0.00%",
+            "displayFolder": "Estimates\\Surprise",
+            "lineageTag": "m-avg-eps-surprise"
+          },
+          {
+            "name": "Last EPS Surprise",
+            "expression": "VAR _lastDate = CALCULATE(MAX(FactEstimatesSurprise[Date]), FactEstimatesSurprise[Metric] = \"EPS\") RETURN CALCULATE(SELECTEDVALUE(FactEstimatesSurprise[SurpriseAmount]), FactEstimatesSurprise[Metric] = \"EPS\", FactEstimatesSurprise[Date] = _lastDate)",
+            "formatString": "#,##0.00",
+            "displayFolder": "Estimates\\Surprise",
+            "lineageTag": "m-last-eps-surprise"
+          },
+          {
+            "name": "ESG Score (Latest)",
+            "expression": "CALCULATE(SELECTEDVALUE(FactESGScores[ESGScore]), LASTNONBLANK(FactESGScores[Date], 1))",
+            "formatString": "#,##0.0",
+            "displayFolder": "ESG",
+            "lineageTag": "m-esg-score"
+          },
+          {
+            "name": "Environmental Score",
+            "expression": "CALCULATE(SELECTEDVALUE(FactESGScores[EnvironmentalScore]), LASTNONBLANK(FactESGScores[Date], 1))",
+            "formatString": "#,##0.0",
+            "displayFolder": "ESG",
+            "lineageTag": "m-env-score"
+          },
+          {
+            "name": "Social Score",
+            "expression": "CALCULATE(SELECTEDVALUE(FactESGScores[SocialScore]), LASTNONBLANK(FactESGScores[Date], 1))",
+            "formatString": "#,##0.0",
+            "displayFolder": "ESG",
+            "lineageTag": "m-social-score"
+          },
+          {
+            "name": "Governance Score",
+            "expression": "CALCULATE(SELECTEDVALUE(FactESGScores[GovernanceScore]), LASTNONBLANK(FactESGScores[Date], 1))",
+            "formatString": "#,##0.0",
+            "displayFolder": "ESG",
+            "lineageTag": "m-gov-score"
+          },
+          {
+            "name": "ESG Percentile Rank",
+            "expression": "CALCULATE(SELECTEDVALUE(FactESGScores[ESGRankPercent]), LASTNONBLANK(FactESGScores[Date], 1))",
+            "formatString": "0.0%",
+            "displayFolder": "ESG",
+            "lineageTag": "m-esg-pct-rank"
+          },
+          {
+            "name": "Institutional Ownership %",
+            "expression": "SUM(FactOwnership[PercentOutstanding])",
+            "formatString": "0.00%",
+            "displayFolder": "Ownership",
+            "lineageTag": "m-inst-own-pct"
+          },
+          {
+            "name": "Holder Count",
+            "expression": "DISTINCTCOUNT(FactOwnership[HolderEntityId])",
+            "formatString": "#,##0",
+            "displayFolder": "Ownership",
+            "lineageTag": "m-holder-count"
+          },
+          {
+            "name": "Top 10 Holder Concentration",
+            "expression": "VAR _ranked = TOPN(10, VALUES(FactOwnership[HolderEntityId]), CALCULATE(SUM(FactOwnership[PercentOutstanding])), DESC) RETURN SUMX(_ranked, CALCULATE(SUM(FactOwnership[PercentOutstanding])))",
+            "formatString": "0.00%",
+            "displayFolder": "Ownership",
+            "lineageTag": "m-top10-concentration",
+            "annotations": [{ "name": "Description", "value": "Combined ownership percentage of the top 10 institutional holders." }]
+          },
+          {
+            "name": "Total Dividends Paid",
+            "expression": "SUM(FactDividends[DividendAmount])",
+            "formatString": "#,##0.0000",
+            "displayFolder": "Dividends",
+            "lineageTag": "m-total-divs"
+          },
+          {
+            "name": "Dividend Count",
+            "expression": "COUNTROWS(FactDividends)",
+            "formatString": "#,##0",
+            "displayFolder": "Dividends",
+            "lineageTag": "m-div-count"
+          },
+          {
+            "name": "Annual Dividend",
+            "expression": "CALCULATE(SUM(FactDividends[DividendAmount]), DATESINPERIOD(DimDate[Date], MAX(DimDate[Date]), -1, YEAR))",
+            "formatString": "#,##0.00",
+            "displayFolder": "Dividends",
+            "lineageTag": "m-annual-div"
+          },
+          {
+            "name": "Benchmark Weight",
+            "expression": "SUM(FactBenchmarkConstituents[Weight])",
+            "formatString": "0.00%",
+            "displayFolder": "Benchmark",
+            "lineageTag": "m-bench-weight"
+          },
+          {
+            "name": "Active Weight",
+            "expression": "[Benchmark Weight] - DIVIDE(1, COUNTROWS(FactBenchmarkConstituents), BLANK())",
+            "formatString": "0.00%",
+            "displayFolder": "Benchmark",
+            "lineageTag": "m-active-weight",
+            "annotations": [{ "name": "Description", "value": "Weight relative to equal-weight benchmark. Positive = overweight." }]
+          },
+          {
+            "name": "Security Count",
+            "expression": "DISTINCTCOUNT(DimSecurity[FsymId])",
+            "formatString": "#,##0",
+            "displayFolder": "Portfolio",
+            "lineageTag": "m-sec-count"
+          },
+          {
+            "name": "Entity Count",
+            "expression": "DISTINCTCOUNT(DimEntity[EntityId])",
+            "formatString": "#,##0",
+            "displayFolder": "Portfolio",
+            "lineageTag": "m-entity-count"
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "FactPrices_DimSecurity",
+        "fromTable": "FactPrices",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "crossFilteringBehavior": "bothDirections"
+      },
+      {
+        "name": "FactPrices_DimDate",
+        "fromTable": "FactPrices",
+        "fromColumn": "Date",
+        "toTable": "DimDate",
+        "toColumn": "Date"
+      },
+      {
+        "name": "FactReturns_DimSecurity",
+        "fromTable": "FactReturns",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactReturns_DimDate",
+        "fromTable": "FactReturns",
+        "fromColumn": "Date",
+        "toTable": "DimDate",
+        "toColumn": "Date",
+        "isActive": false
+      },
+      {
+        "name": "FactDividends_DimSecurity",
+        "fromTable": "FactDividends",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactFundamentals_DimSecurity",
+        "fromTable": "FactFundamentals",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactEstimatesConsensus_DimSecurity",
+        "fromTable": "FactEstimatesConsensus",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactEstimatesSurprise_DimSecurity",
+        "fromTable": "FactEstimatesSurprise",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactESGScores_DimSecurity",
+        "fromTable": "FactESGScores",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactOwnership_DimSecurity",
+        "fromTable": "FactOwnership",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "DimSecurity_DimEntity",
+        "fromTable": "DimSecurity",
+        "fromColumn": "EntityId",
+        "toTable": "DimEntity",
+        "toColumn": "EntityId"
+      },
+      {
+        "name": "FactBenchmarkConstituents_DimSecurity",
+        "fromTable": "FactBenchmarkConstituents",
+        "fromColumn": "FsymId",
+        "toTable": "DimSecurity",
+        "toColumn": "FsymId",
+        "isActive": false
+      },
+      {
+        "name": "FactBenchmarkConstituents_DimBenchmark",
+        "fromTable": "FactBenchmarkConstituents",
+        "fromColumn": "BenchmarkId",
+        "toTable": "DimBenchmark",
+        "toColumn": "BenchmarkId"
+      },
+      {
+        "name": "FactPrices_DimCurrency",
+        "fromTable": "FactPrices",
+        "fromColumn": "Currency",
+        "toTable": "DimCurrency",
+        "toColumn": "CurrencyCode",
+        "isActive": false
+      }
+    ],
+    "expressions": [
+      {
+        "name": "FactSet_AccessToken",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    // Configure your FactSet OAuth 2.0 credentials below.",
+          "    // Obtain from: https://developer.factset.com/applications",
+          "    clientId = \"YOUR_CLIENT_ID\",",
+          "    clientSecret = \"YOUR_CLIENT_SECRET\",",
+          "    tokenUrl = \"https://auth.factset.com/as/token.oauth2\",",
+          "    body = \"grant_type=client_credentials&client_id=\" & clientId & \"&client_secret=\" & clientSecret,",
+          "    response = Web.Contents(tokenUrl, [",
+          "        Headers = [#\"Content-Type\" = \"application/x-www-form-urlencoded\"],",
+          "        Content = Text.ToBinary(body)",
+          "    ]),",
+          "    parsed = Json.Document(response),",
+          "    token = parsed[access_token]",
+          "in",
+          "    token"
+        ],
+        "lineageTag": "expr-access-token",
+        "annotations": [
+          { "name": "Description", "value": "FactSet OAuth 2.0 access token via client credentials flow. Replace YOUR_CLIENT_ID and YOUR_CLIENT_SECRET with values from your FactSet Developer Portal application." }
+        ]
+      },
+      {
+        "name": "FactSet_WatchlistIds",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    // Define your security watchlist here. Use FactSet ticker-region format.",
+          "    ids = {\"AAPL-US\", \"MSFT-US\", \"GOOGL-US\", \"AMZN-US\", \"META-US\",",
+          "           \"NVDA-US\", \"TSLA-US\", \"JPM-US\", \"V-US\", \"JNJ-US\",",
+          "           \"WMT-US\", \"PG-US\", \"UNH-US\", \"HD-US\", \"BAC-US\",",
+          "           \"MA-US\", \"DIS-US\", \"ADBE-US\", \"CRM-US\", \"NFLX-US\"}",
+          "in",
+          "    ids"
+        ],
+        "lineageTag": "expr-watchlist",
+        "annotations": [
+          { "name": "Description", "value": "List of FactSet security identifiers to track. Edit this list to customize your watchlist. Format: TICKER-REGION (e.g., AAPL-US, SHEL-GB, 7203-JP)." }
+        ]
+      },
+      {
+        "name": "FactSet_BenchmarkIds",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    ids = {\"SP50\"}",
+          "in",
+          "    ids"
+        ],
+        "lineageTag": "expr-benchmark-ids",
+        "annotations": [
+          { "name": "Description", "value": "Benchmark index identifiers. Default: SP50 (S&P 500). Other examples: R3000 (Russell 3000), MSACWI (MSCI ACWI)." }
+        ]
+      },
+      {
+        "name": "FactSet_StartDate",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    startDate = \"2020-01-01\"",
+          "in",
+          "    startDate"
+        ],
+        "lineageTag": "expr-start-date",
+        "annotations": [
+          { "name": "Description", "value": "Start date for historical data retrieval in YYYY-MM-DD format." }
+        ]
+      },
+      {
+        "name": "FactSet_EndDate",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    endDate = \"0\"",
+          "in",
+          "    endDate"
+        ],
+        "lineageTag": "expr-end-date",
+        "annotations": [
+          { "name": "Description", "value": "End date for data retrieval. Use '0' for current date, or specify YYYY-MM-DD format." }
+        ]
+      },
+      {
+        "name": "FactSet_FiscalStart",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    period = \"-5\"",
+          "in",
+          "    period"
+        ],
+        "lineageTag": "expr-fiscal-start",
+        "annotations": [
+          { "name": "Description", "value": "Fiscal period start offset. -5 = five fiscal years prior to current." }
+        ]
+      },
+      {
+        "name": "FactSet_FiscalEnd",
+        "kind": "m",
+        "expression": [
+          "let",
+          "    period = \"0\"",
+          "in",
+          "    period"
+        ],
+        "lineageTag": "expr-fiscal-end",
+        "annotations": [
+          { "name": "Description", "value": "Fiscal period end offset. 0 = current/most recent fiscal period." }
+        ]
+      }
+    ],
+    "roles": [
+      {
+        "name": "Reader",
+        "modelPermission": "read",
+        "members": [],
+        "tablePermissions": []
+      },
+      {
+        "name": "Administrator",
+        "modelPermission": "administrator",
+        "members": [],
+        "tablePermissions": []
+      }
+    ]
+  }
+}
