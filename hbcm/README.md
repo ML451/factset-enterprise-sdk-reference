@@ -11,7 +11,17 @@ target the `HBCM - Production` workspace and the `hbcm_datahub` lakehouse.
 
 | Notebook | What it does |
 |---|---|
-| `spar_composite_returns_template.ipynb` | SPAR Engine returns for the four active GIPS composites vs. their benchmarks, gross/net toggle, multiple SPAR components ("tiles"), as-of most recent quarter end → `factset.spar_composite_returns` |
+| `spar_composite_returns_template.ipynb` | SPAR Engine returns for the four GIPS composites (LC, SMID, LCS, CONC) vs. their benchmarks, gross/net toggle, seven SPAR components ("tiles"), as-of `0CQ` → `factset.spar_composite_returns` |
+| `pa_weights_characteristics_template.ipynb` | **Placeholder.** PA Engine holdings snapshot — weights (`SECURITIES`) and characteristics (`GROUPS`) at `0CQ`, single frequency, multi-port → `factset.pa_weights_characteristics`. Write step disabled until the account↔benchmark pairing question is settled. |
+
+### Component ids are resolved by name, every run
+
+Neither notebook hardcodes a component id. Re-saving a component in the workstation can
+mint a new id, and a stale id fails as a bare 400 with nothing pointing at the id as the
+cause. So the component's **workstation name** is the contract: each run looks up
+name → id and fails loudly if a name is absent or ambiguous. An optional
+`pinned_componentid` per tile turns a changed id into a visible warning, since a re-saved
+component may also have had its columns changed.
 
 ### Shared conventions
 
