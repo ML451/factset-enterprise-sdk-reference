@@ -23,5 +23,15 @@ target the `HBCM - Production` workspace and the `hbcm_datahub` lakehouse.
 - **Libraries** belong on a Fabric Environment bound to the notebook, not `%pip`. Inline
   installs are disabled by default in pipeline runs, unsupported in reference runs, and not
   retained between runs.
+- **SDK versions** track upstream `FactSet/enterprise-sdk` `main`, *not* the copies
+  vendored under `code/python/` here — this mirror lags (SPAREngine is at 2.0.3 locally
+  vs. 3.0.0 upstream, PAEngine 2.2.2 vs. 4.0.0). Current as of 2026-08-06:
+  `fds.sdk.SPAREngine==3.0.0`, `fds.sdk.PAEngine==4.0.0`,
+  `fds.sdk.UniversalScreening==2.0.0`, `fds.sdk.utils==3.0.1`,
+  `fds.protobuf.stach.extensions==1.3.3`. All Python SDKs took a coordinated major bump
+  on 2026-05-20 that dropped Python ≤3.9 and moved to `urllib3>=2.7.0`; PA Engine took a
+  further breaking change on 2026-07-21 (required fields dropped from
+  `PADateParameters`). Notebooks assert their SDK major at import so a stale Environment
+  fails loudly instead of erroring downstream.
 - **Python, not PySpark.** These workloads are megabytes; a Spark cold start costs more
   than the work.
