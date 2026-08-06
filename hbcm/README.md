@@ -36,6 +36,42 @@ the component names is enough to read out the account ids, prefixes, return type
 benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
 a cell that prints them as a paste-ready block.
 
+### Benchmarks differ by engine, on purpose
+
+| Engine | Benchmark | Why |
+|---|---|---|
+| **SPAR** | official Russell index return streams | returns-based; needs only a return series |
+| **PA3** | **iShares tracking ETFs** — IWB / SMMD / IWV | holdings-based; needs constituents, and HBCM isn't entitled to official Russell constituent data |
+
+**The two are therefore measured against different benchmarks.** An ETF differs from its
+index by expense ratio, cash drag, sampling and timing, so PA active weights will not tie
+exactly to SPAR relative returns. That gap is expected — but the two must never be presented
+as though they shared a benchmark. The PA notebook checks each component's *saved* benchmark
+and warns if one is pointed at an official index, since that would either 403 on entitlement
+or silently return no constituents.
+
+### Fee basis is per tile, not global
+
+Performance tiles carry **both** gross and net, since the SEC Marketing Rule requires net
+alongside any gross presentation. Risk statistics and peer tables default to **gross only** —
+risk stats aren't returns, and peer universes are conventionally gross, so ranking a net
+return against a gross universe isn't like-for-like. That peer default is a compliance
+judgement rather than a technical one and is a one-word change per tile. 44 SPAR units
+rather than 56.
+
+### Dates are dynamic in the request, absolute in the data
+
+`0CQ` is what gets **sent**, so the scheduled job needs no maintenance as quarters roll. The
+absolute date PA resolves is what **labels** every row. PA sends no `startdate` at all —
+optional in 4.0.0 and meaningless at `Single` frequency.
+
+SPAR's inception tiles set `useeachportfolioinception`, so the **engine** starts each strategy
+at its own earliest available monthly data; nothing is configured and nothing is maintained.
+The actual window is then read back from each time-series response — per tile × strategy ×
+basis, min/max date and period count — which confirms the real inception, confirms the as-of
+(max date), flags a mismatch against the `0CQ` label, and catches gross and net series with
+unequal period counts.
+
 ### PA resolves `0CQ`, and that answer is used everywhere
 
 SPAR Engine has no `DatesApi`; PA does. So `convert_pa_dates_to_absolute_format` turns
