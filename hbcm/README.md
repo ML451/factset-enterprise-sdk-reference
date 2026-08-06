@@ -36,6 +36,47 @@ the component names is enough to read out the account ids, prefixes, return type
 benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
 a cell that prints them as a paste-ready block.
 
+### `strategy_code` is the join key everywhere
+
+A 2–4 character internal code — `LC`, `LCS`, `SMID`, `CONC` — is the single join key across
+every PA and SPAR table, because the semantic model is filtered to one strategy at a time.
+Both notebooks declare the canonical set and its labels, assert their own config matches, and
+assert every landed row's code is present, correctly formatted and known. A null or off-spec
+code doesn't fail loudly downstream — it produces a row that silently vanishes from every
+strategy-filtered visual, which is worse than an error.
+
+`factset.dim_strategy` is emitted by the PA notebook as the dimension to filter on, carrying
+the label, PA account, holdings mode and benchmark per strategy.
+
+### The same security in more than one strategy is expected — plan for it
+
+LC and LCS are both large-cap, so they hold many of the same names. Consequences:
+
+- **`fsym_perm_id` is not a unique key** in `pa_security_weights`. The real grain is
+  `asof_date` × `strategy_code` × `fsym_perm_id`, and that uniqueness is asserted before the
+  write — a genuine duplicate *within* one strategy would make a relationship fan out and
+  weights double, which shows up as plausible-but-wrong numbers rather than an error.
+- A security dimension must be **many-to-one**, and `strategy_code` must be in filter context
+  before summing any weight. Sum without it and you sum across strategies.
+- The notebook reports how many securities are shared and by which strategies, plus the
+  portfolio-weight total per strategy (expect ≈100), which is the check that catches a bad
+  grain split or an over-aggressive benchmark-only filter.
+
+### Misalignment checks the notebooks run
+
+- **The two monthly SPAR tiles are cross-checked.** `cumulative_monthly` and
+  `monthly_raw_returns` are two views of the same monthly stream, so their first period, last
+  period and period count must match per strategy and basis. A disagreement means a
+  component's saved date range is overriding the request, or a call returned a truncated
+  series — either way the two tiles would tell different stories about one composite.
+- **Gross and net period counts** must match within a strategy, or a gross-vs-net comparison
+  is off by the missing months.
+- **Horizon rows that exceed a strategy's history are flagged** — a "5 Year" figure for a
+  composite with three years of data is meaningless, not merely empty, and looks like a real
+  number in a visual.
+- **Partial first calendar years are flagged** — a composite that launched mid-year has a stub
+  in its inception year's calendar-year row, not a full-year return.
+
 ### Consuming from Power BI — the point of all of this
 
 Both notebooks land **typed** tables so Power Query needs essentially nothing: measures
