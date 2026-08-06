@@ -36,6 +36,41 @@ the component names is enough to read out the account ids, prefixes, return type
 benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
 a cell that prints them as a paste-ready block.
 
+### Consuming from Power BI — the point of all of this
+
+Both notebooks land **typed** tables so Power Query needs essentially nothing: measures
+arrive as `Float64`, dates as real dates. If a report ever needs
+`Table.TransformColumnTypes` on a measure, that's a defect here, not something to fix in M —
+fix it once at the source rather than in every report.
+
+| Table | Grain |
+|---|---|
+| `factset.spar_composite_returns` | `asof_date` x `tile` x `strategy_code` x `fee_basis` x the component's own row axis |
+| `factset.pa_sector_weights` | `asof_date` x `strategy_code` x sector |
+| `factset.pa_security_weights` | `asof_date` x `strategy_code` x `fsym_perm_id` (held names only) |
+| `factset.pa_characteristics` | `asof_date` x `strategy_code` x group |
+| `factset.factset_run_log` | one row per run, append-only |
+
+Two columns carry the as-of deliberately: `asof_date` is a `YYYYMMDD` string used by the
+Delta delete predicate, and **`asof_date_iso` is the real date** — model on that one.
+
+The three PA weight tables are separate because **PA supplies precalculated weights at every
+grain**. A sector row's weight already equals the sum of its securities', so a single shared
+table would double-count on any unfiltered `SUM`. Never aggregate one grain to derive
+another; if a sum disagrees with the sector row, the sector row wins.
+
+### Quarterly refresh, in order
+
+1. **PA notebook** — resolves `0CQ` and publishes the absolute date SPAR reads.
+2. **SPAR notebook.**
+3. **Re-frame the Direct Lake semantic model** — until it's re-framed it serves last
+   quarter's numbers.
+4. **Then** any `VACUUM`. Never before framing: vacuuming files a framed model still points
+   at gives users query errors on missing files. Always write → frame → vacuum.
+
+Both notebooks are re-runnable — each write deletes the current `asof_date` before appending,
+so a repeat replaces the quarter rather than doubling it, and prior quarters are untouched.
+
 ### Benchmarks differ by engine, on purpose
 
 | Engine | Benchmark | Why |
