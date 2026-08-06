@@ -12,7 +12,20 @@ target the `HBCM - Production` workspace and the `hbcm_datahub` lakehouse.
 | Notebook | What it does |
 |---|---|
 | `spar_composite_returns_template.ipynb` | SPAR Engine returns for the four GIPS composites (LC, SMID, LCS, CONC) vs. their benchmarks, gross/net toggle, seven SPAR components ("tiles"), as-of `0CQ` → `factset.spar_composite_returns` |
-| `pa_weights_characteristics_template.ipynb` | **Placeholder.** PA Engine holdings snapshot — weights (`SECURITIES`) and characteristics (`GROUPS`) at `0CQ`, single frequency, multi-port → `factset.pa_weights_characteristics`. Write step disabled until the account↔benchmark pairing question is settled. |
+| `pa_weights_characteristics_template.ipynb` | **Placeholder.** PA Engine holdings snapshot at `0CQ`, single frequency. Weights use `GROUPSALL`, so sector weights (port/bench/active) and security-level weights for top-N come from one call, split into `factset.pa_sector_weights` and `factset.pa_security_weights`; characteristics use `GROUPS`. Write step disabled until the grain discriminator and account column are confirmed against real output. |
+
+### Benchmarks
+
+| Group | Benchmark | Composites |
+|---|---|---|
+| `r1000` | Russell 1000 | LC, LCS |
+| `r2500` | Russell 2500 | SMID |
+| `r3000` | Russell 3000 | CONC |
+
+Both notebooks define these once and reference them per strategy, so the two R1000
+composites cannot drift onto different benchmarks. In the PA notebook the grouping does
+double duty: units are built per benchmark group, which means each unit carries exactly one
+benchmark and the account↔benchmark pairing question never arises.
 
 ### Component ids are resolved by name, every run
 
