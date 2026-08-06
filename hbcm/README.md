@@ -104,6 +104,46 @@ guessing from column names or sniffing values:
 Columns with no declared type fall back to sniffing and are **reported**, so an undeclared
 measure is visible rather than quietly landing as text.
 
+### Identifiers are captured, not assumed — `factset.dim_account_map`
+
+What a response calls an account is not necessarily what was sent. PA may echo an Orion
+account id, a `path.ACCT` form, or a display name; a benchmark may come back as a symbol, a
+name, or both. So matching is normalised rather than exact — it tries the value as sent, then
+case-insensitively, then with the `CLIENT:`-style prefix and any `.ACCT` / `.ACTM` suffix
+stripped — and **every identifier observed is recorded against `strategy_code`** in
+`factset.dim_account_map`, alongside what was sent and how it matched.
+
+That makes the crosswalk auditable and makes a vendor changing what it echoes visible:
+unmatched values are printed rather than silently dropped, and adding one as a key in
+`ACCT_TO_CODE` is the whole fix.
+
+### Weights land at three grains, because FactSet publishes three
+
+FSYM perm id is populated **only at security grain** — group and total rows leave it blank.
+Combined with STACH's `group_level` that gives an unambiguous classification, and the weights
+tile splits into three tables:
+
+| Table | Grain |
+|---|---|
+| `factset.pa_total_weights` | `asof_date` × `strategy_code` |
+| `factset.pa_sector_weights` | `asof_date` × `strategy_code` × sector |
+| `factset.pa_security_weights` | `asof_date` × `strategy_code` × `fsym_perm_id` |
+
+All three carry precalculated, compounded values, so **none is additive to another** — a
+shared table would double- or triple-count on any unfiltered `SUM`.
+
+Security rows carry `ticker`, `security_name`, and each FSYM flavour the component exposes
+(`fsym_perm_id`, `fsym_regional_id`, `fsym_entity_id`, `ultimate_parent_fsym_id`) kept as
+separate columns rather than collapsed, since they identify different things — the security,
+the regional listing, the issuer.
+
+**GICS sector on a holding is derived from the STACH layout**, because FactSet doesn't repeat
+it on security rows. Rather than forward-filling one column, the notebook walks STACH's level
+stack to assign each row its true ancestors — which handles nesting deeper than one level
+(sector → industry → security) and cannot leak a label across a sibling boundary. Each row
+gets `group_l0..N` plus `parent_group`; if a component *does* expose a real sector column,
+that wins.
+
 ### `strategy_code` is the join key everywhere
 
 A 2–4 character internal code — `LC`, `LCS`, `SMID`, `CONC` — is the single join key across
@@ -161,6 +201,7 @@ fix it once at the source rather than in every report.
 | `factset.factset_run_log` | one row per run, append-only |
 | `factset.dim_strategy` | one row per strategy — the dimension to filter on |
 | `factset.dim_vintage` | one row per vintage, with `is_latest_complete` |
+| `factset.dim_account_map` | every account / benchmark identifier observed, keyed on `strategy_code` |
 | `factset.vintage_manifest` | one row per vintage x table, with row counts |
 
 Two columns carry the as-of deliberately: `asof_date` is a `YYYYMMDD` string used by the
