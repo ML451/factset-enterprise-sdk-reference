@@ -36,6 +36,40 @@ the component names is enough to read out the account ids, prefixes, return type
 benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
 a cell that prints them as a paste-ready block.
 
+### `asof_date` is the vintage key — one auditable bundle per quarter
+
+Every table both notebooks write carries the same `asof_date` (`YYYYMMDD`), so a quarter's
+output is a single bundle you can audit and reproduce as a unit. Two tables make that usable:
+
+- **`factset.vintage_manifest`** — one row per vintage × table, with row counts, which
+  notebook wrote it and when.
+- **`factset.dim_vintage`** — one row per vintage with `is_complete` (all four fact tables
+  present) and **`is_latest_complete`**.
+
+**Point Power BI at `is_latest_complete`, not `is_latest`.** A vintage where PA landed but
+SPAR failed is present but incomplete, and consuming it would show this quarter's holdings
+against last quarter's returns — which looks entirely plausible. `dim_vintage` is rebuilt
+from the full manifest on every run, so whichever notebook finishes last computes
+completeness correctly with no ordering assumption beyond both having run.
+
+### STACH parsing is schema-driven, not name-driven
+
+The notebooks read each table's own column definitions out of the STACH package rather than
+guessing from column names or sniffing values:
+
+- the declared column **`type`** decides date vs numeric vs text, so a component that calls
+  its date column "Period End" needs no configuration
+- **`is_dimension`** protects identifiers, so an FSYM perm id or a zero-padded code is never
+  coerced to a float
+- **`null_format`** is the exact token meaning "no value" for *that* column, instead of a
+  global guess at `--` / `N/A`
+- **`group_level`** (from `CellDetail`) is the authoritative grain discriminator for
+  `GROUPSALL`, replacing the earlier heuristic of hunting for a level column or a null
+  security id
+
+Columns with no declared type fall back to sniffing and are **reported**, so an undeclared
+measure is visible rather than quietly landing as text.
+
 ### `strategy_code` is the join key everywhere
 
 A 2–4 character internal code — `LC`, `LCS`, `SMID`, `CONC` — is the single join key across
@@ -91,6 +125,9 @@ fix it once at the source rather than in every report.
 | `factset.pa_security_weights` | `asof_date` x `strategy_code` x `fsym_perm_id` (held names only) |
 | `factset.pa_characteristics` | `asof_date` x `strategy_code` x group |
 | `factset.factset_run_log` | one row per run, append-only |
+| `factset.dim_strategy` | one row per strategy — the dimension to filter on |
+| `factset.dim_vintage` | one row per vintage, with `is_latest_complete` |
+| `factset.vintage_manifest` | one row per vintage x table, with row counts |
 
 Two columns carry the as-of deliberately: `asof_date` is a `YYYYMMDD` string used by the
 Delta delete predicate, and **`asof_date_iso` is the real date** — model on that one.
