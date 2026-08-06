@@ -113,7 +113,9 @@ case-insensitively, then with the `CLIENT:`-style prefix and any `.ACCT` / `.ACT
 stripped — and **every identifier observed is recorded against `strategy_code`** in
 `factset.dim_account_map`, alongside what was sent and how it matched.
 
-That makes the crosswalk auditable and makes a vendor changing what it echoes visible:
+The crosswalk is then pivoted into `factset.dim_universe`, so the curated one-row-per-strategy
+view and the long-form audit trail stay two views of the same facts. It also makes a vendor
+changing what it echoes visible:
 unmatched values are printed rather than silently dropped, and adding one as a key in
 `ACCT_TO_CODE` is the whole fix.
 
@@ -162,8 +164,8 @@ assert every landed row's code is present, correctly formatted and known. A null
 code doesn't fail loudly downstream — it produces a row that silently vanishes from every
 strategy-filtered visual, which is worse than an error.
 
-`factset.dim_strategy` is emitted by the PA notebook as the dimension to filter on, carrying
-the label, PA account, holdings mode and benchmark per strategy.
+`factset.dim_universe` is the dimension to filter on — one row per strategy with every
+identifier both engines send or echo (see "One dimension to join on" above).
 
 ### The same security in more than one strategy is expected — plan for it
 
@@ -194,6 +196,54 @@ LC and LCS are both large-cap, so they hold many of the same names. Consequences
 - **Partial first calendar years are flagged** — a composite that launched mid-year has a stub
   in its inception year's calendar-year row, not a full-year return.
 
+### OneLake layout — deliberately flat
+
+No bronze/silver/gold. Two layers, because two layers is what this workload needs:
+
+```
+Files/raw/{pa|spar}/asof=YYYYMMDD/*.json   write-once audit copies, one per calculation unit
+Files/raw/_asof/0CQ.json                   the quarter-end resolution PA publishes for SPAR
+Tables/factset/*                           final, typed, validated Delta tables — what Power BI reads
+```
+
+The raw files already do bronze's job — replay a quarter without re-calling FactSet, GIPS /
+Marketing Rule substantiation — and the tables are already gold: typed from the STACH schema
+at the source, validated before every write, one quarter = one vintage. A silver layer would
+add refresh steps without adding information, because FactSet's numbers arrive precalculated;
+there is no transformation stage for it to hold.
+
+| Group | Tables | Write pattern |
+|---|---|---|
+| **Facts** | `spar_composite_returns`, `pa_sector_weights`, `pa_security_weights`, `pa_characteristics` | delete-then-append per vintage |
+| **Dims** | `dim_universe`, `dim_vintage` | full overwrite each run |
+| **Ops / audit** | `vintage_manifest`, `dim_account_map`, `factset_run_log` | append-only |
+
+### One dimension to join on: `factset.dim_universe`
+
+One row per strategy, **every identifier side by side** — the Orion account id PA echoes next
+to the FactSet account path that was sent, and each engine's benchmark symbol next to its
+display name:
+
+| Column group | Contents |
+|---|---|
+| identity | `strategy_code`, `strategy`, `sort_order` |
+| PA side | `pa_account_path` (sent), `orion_account_id` (observed), `pa_benchmark_id`, `pa_benchmark_name`, `pa_benchmark_observed` |
+| SPAR side | `spar_account`, `spar_account_name`, `spar_benchmark_symbol`, `spar_benchmark_name`, `spar_peer_universe` |
+
+It is pivoted from `dim_account_map` (the long-form audit trail), taking the latest value per
+strategy/source/role, and rebuilt by whichever notebook runs last — like `dim_vintage` — so it
+converges once both have run. Relate every fact table to it on `strategy_code`; benchmark
+display names for titles and tooltips come from here instead of being hardcoded in reports.
+
+### The end date is `0CQ`, globally, and stays that way
+
+Both notebooks send `0CQ` on every refresh, so **FactSet itself resolves "latest completed
+quarter end" at run time** — after quarter close, hit run; nothing to edit. The one knob is
+`BACKFILL_AS_OF`: set it to a `YYYYMMDD` quarter end for an ad hoc backfill or restatement
+replay, run, set it back to `None`. Each backfilled quarter lands as its own `asof_date`
+vintage without touching any other, and backfill mode skips publishing the shared as-of so it
+cannot mislabel a later normal run.
+
 ### Consuming from Power BI — the point of all of this
 
 Both notebooks land **typed** tables so Power Query needs essentially nothing: measures
@@ -208,7 +258,7 @@ fix it once at the source rather than in every report.
 | `factset.pa_security_weights` | `asof_date` x `strategy_code` x `fsym_perm_id` (held names only) |
 | `factset.pa_characteristics` | `asof_date` x `strategy_code` x group |
 | `factset.factset_run_log` | one row per run, append-only |
-| `factset.dim_strategy` | one row per strategy — the dimension to filter on |
+| `factset.dim_universe` | one row per strategy — every account / benchmark identifier side by side |
 | `factset.dim_vintage` | one row per vintage, with `is_latest_complete` |
 | `factset.dim_account_map` | every account / benchmark identifier observed, keyed on `strategy_code` |
 | `factset.vintage_manifest` | one row per vintage x table, with row counts |
