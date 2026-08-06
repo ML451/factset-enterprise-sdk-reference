@@ -27,6 +27,15 @@ composites cannot drift onto different benchmarks. In the PA notebook the groupi
 double duty: units are built per benchmark group, which means each unit carries exactly one
 benchmark and the account↔benchmark pairing question never arises.
 
+### The document path is most of the config
+
+`SPARComponent` and `PAComponent` both expose the accounts and benchmarks **saved in the
+document** — SPAR's carry `id` + `returntype` + `prefix`, PA's carry `id` +
+`holdingsmode`, and PA's also carry `dates` and a `snapshot` flag. So a document path plus
+the component names is enough to read out the account ids, prefixes, return types and
+benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
+a cell that prints them as a paste-ready block.
+
 ### Component ids are resolved by name, every run
 
 Neither notebook hardcodes a component id. Re-saving a component in the workstation can
