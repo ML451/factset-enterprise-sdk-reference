@@ -52,6 +52,40 @@ against last quarter's returns — which looks entirely plausible. `dim_vintage`
 from the full manifest on every run, so whichever notebook finishes last computes
 completeness correctly with no ordering assumption beyond both having run.
 
+### FactSet's numbers are precalculated — nothing here derives them
+
+PA and SPAR return values already aggregated, compounded and annualised at every grain they
+publish. These notebooks reshape and type them for display and recompute none of them. The
+only arithmetic anywhere is on **dates** and **row counts**, neither of which is a reported
+number; where one grain's total is printed beside another's it is labelled reconciliation,
+printed only, never written, and the engine's value wins.
+
+Two rules follow into the semantic model:
+
+- **Never `SUM` or `AVERAGE` a return across periods in DAX.** Select the precalculated value
+  for the grain on display — that is what the multi-horizon, calendar-year and cumulative
+  tiles are for. Compounding monthly returns in DAX will disagree with FactSet, and FactSet is
+  the number that goes in front of a client.
+- **Never sum a weight across grains.** Sector totals from the sector rows, holdings detail
+  from the security rows.
+
+### Horizons are auto-hidden where the history does not exist
+
+A "5 Year" figure for a composite with one year of history renders as a real number, so SPAR
+suppresses it rather than flagging it. Months of history come from the inception confirmed off
+the time-series responses, so the rule adapts as each composite ages.
+
+- Horizon **columns** invalid for one strategy are blanked for that strategy; columns no
+  strategy supports are dropped entirely.
+- Horizon **rows**, where a component lays them out that way, are dropped per strategy.
+- `YTD` / `QTD` / `MTD` / `ITD` / "Since Inception" / "Cumulative" are always valid — defined
+  by whatever history exists rather than requiring a fixed span.
+- Columns STACH marks `is_hidden` are dropped as well; that's the engine's own decision.
+
+Suppression withholds, never recalculates — surviving values are identical to what the engine
+returned. Blanked and dropped counts land in `factset.factset_run_log`, so the quarter LC's
+5-year figure first appears is visible in the log rather than a surprise in a report.
+
 ### STACH parsing is schema-driven, not name-driven
 
 The notebooks read each table's own column definitions out of the STACH package rather than
