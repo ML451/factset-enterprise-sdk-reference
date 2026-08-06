@@ -117,20 +117,29 @@ That makes the crosswalk auditable and makes a vendor changing what it echoes vi
 unmatched values are printed rather than silently dropped, and adding one as a key in
 `ACCT_TO_CODE` is the whole fix.
 
-### Weights land at three grains, because FactSet publishes three
+### Weights land at two grains; characteristics at one
 
 FSYM perm id is populated **only at security grain** — group and total rows leave it blank.
-Combined with STACH's `group_level` that gives an unambiguous classification, and the weights
-tile splits into three tables:
+With STACH's `group_level` as the tiebreak between total and group, that classifies every row
+unambiguously. Weights then land at two grains, and the portfolio-**total** row is dropped: it
+carries nothing the others lack, and its only real use is the 100% check below.
 
 | Table | Grain |
 |---|---|
-| `factset.pa_total_weights` | `asof_date` × `strategy_code` |
 | `factset.pa_sector_weights` | `asof_date` × `strategy_code` × sector |
 | `factset.pa_security_weights` | `asof_date` × `strategy_code` × `fsym_perm_id` |
+| `factset.pa_characteristics` | `asof_date` × `strategy_code` — total grain |
 
-All three carry precalculated, compounded values, so **none is additive to another** — a
-shared table would double- or triple-count on any unfiltered `SUM`.
+Both weight grains carry precalculated values, so **neither is additive to the other**.
+Characteristics come from a `TOTALS` component already aggregated by the engine — one row per
+strategy, asserted before the write, so it relates to `dim_strategy` one-to-one and needs no
+grain filter at all.
+
+**Weights are the one place a column sum is meaningful**, and only as a check that it reaches
+100% — never as a published figure. Both grains are summed per strategy and compared: a
+security total short of 100 points at the benchmark-only filter or at cash being dropped for
+having no portfolio weight, and the two grains disagreeing points at the grain classification
+itself.
 
 Security rows carry `ticker`, `security_name`, and each FSYM flavour the component exposes
 (`fsym_perm_id`, `fsym_regional_id`, `fsym_entity_id`, `ultimate_parent_fsym_id`) kept as
