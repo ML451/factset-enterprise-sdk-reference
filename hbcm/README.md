@@ -36,6 +36,29 @@ the component names is enough to read out the account ids, prefixes, return type
 benchmark ids rather than hand-transcribing them from the workstation. Both notebooks have
 a cell that prints them as a paste-ready block.
 
+### PA resolves `0CQ`, and that answer is used everywhere
+
+SPAR Engine has no `DatesApi`; PA does. So `convert_pa_dates_to_absolute_format` turns
+`0CQ` into a real `YYYYMMDD`, and **that absolute date is what both notebooks send and what
+labels every row** — no locally computed guess reaches the data, and the request is
+identical on replay instead of drifting as quarters roll.
+
+The PA notebook publishes its resolved date to `Files/raw/_asof/<relative>.json`; the SPAR
+notebook reads that first, falls back to calling PA itself (which needs one PA component id
+and one PA account, configured as `PA_PROBE_*` and used for nothing else), and only then to
+a computed quarter end — recording which source it used either way.
+
+Note the date endpoint requires `enddate` **and** `componentid` **and** `account`, so it
+runs after component resolution, not before.
+
+### Everything is logged to `factset.factset_run_log`
+
+Both notebooks append one row per run: calculation ids, `X-DataDirect-Request-Key`,
+`X-FactSet-Api-Request-Key`, rate-limit headers, per-unit status and errors, SDK versions,
+resolved vs. computed as-of dates, component ids / names / paths / currency / snapshot
+flags, and row counts. Request keys are what FactSet support needs to pull the exact
+request, and they exist only at call time — unlogged, they're gone.
+
 ### Component ids are resolved by name, every run
 
 Neither notebook hardcodes a component id. Re-saving a component in the workstation can
